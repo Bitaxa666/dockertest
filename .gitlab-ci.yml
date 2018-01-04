@@ -1,0 +1,29 @@
+image: docker:git
+
+services:
+  - docker:dind
+
+stages:
+- buildtest
+- test
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/bitaxa666/testwithnewman:$CI_BUILD_REF_NAME
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build:
+  stage: buildtest
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+test:
+  stage: test
+  script:
+    - docker run --rm -p 17080:8080 --name web -d $CONTAINER_TEST_IMAGE
+    - docker run --rm --name newman --link web:web postman/newman_ubuntu1404 --url="https://www.getpostman.com/collections/6bae740ebdba727fe3e6"
+    - echo "step 4 done"
+  after_script:
+    - docker stop web
